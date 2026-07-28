@@ -1,9 +1,12 @@
 #!/bin/bash
 # SessionStart hook for Claude Code on the web.
 #
-# Installs the dependencies a remote session needs so that typecheck, lint, and
-# the unit/sidecar/convex test suites are runnable immediately. Mirrors the
-# `npm ci` step shared by .github/workflows/{typecheck,lint-code,test}.yml.
+# Installs the dependencies a remote session needs to run typecheck, lint, and
+# the unit/sidecar/convex test suites. Mirrors the `npm ci` step shared by
+# .github/workflows/{typecheck,lint-code,test}.yml.
+#
+# Runs async on a cold container (see below), so a fresh session is usable
+# before the install finishes.
 #
 # Not run locally: local checkouts manage their own node_modules (see
 # `npm run worktree:bootstrap`).
@@ -31,6 +34,17 @@ if [ -f "$stamp_file" ] && [ "$(cat "$stamp_file")" = "$lock_hash" ]; then
   echo "session-start: dependencies already current for package-lock.json ($lock_hash)"
   exit 0
 fi
+
+# Cold container: hand the session back immediately and install in the
+# background. Declared here rather than at the top of the file so it only
+# applies to this path — the warm path above already returns in ~10ms, where
+# going async would add machinery and buy nothing.
+#
+# Trade-off: the session is usable before node_modules exists, so a command run
+# in the first ~1-2 minutes can fail on missing deps. Re-running it once the
+# install lands is the fix. The timeout is ~8x the observed cold install so a
+# slow registry doesn't get killed mid-flight.
+echo '{"async": true, "asyncTimeout": 600000}'
 
 # Root install. The root `postinstall` runs `npm ci --prefer-offline` in
 # blog-site/, so the blog workspace is covered here too.
