@@ -15,7 +15,14 @@ public/crawlable-corpus.json
 .vercel
 api/\[domain\]/v1/\[rpc\].js
 api/\[\[...path\]\].js
-.claude/
+# Local Claude state stays ignored, but the shared SessionStart hook that
+# installs deps for Claude Code on the web is tracked. Uses `.claude/*` rather
+# than `.claude/` because git cannot re-include a path under an excluded dir.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/hooks/*
+!.claude/hooks/session-start.sh
 .cursor/
 CLAUDE.md
 .env.vercel-backup
